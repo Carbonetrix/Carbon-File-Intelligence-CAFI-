@@ -1,0 +1,9 @@
+streamlit
+google-generativeai
+pypdf
+PyMuPDF
+Pillow
+python-docx
+fitz
+
+
