@@ -456,6 +456,6 @@ def main():
             st.info(f"Please upload {typepdf.lower()} to start chatting.")
 
 if __name__ == '__main__':
-    GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+    GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
     genai.configure(api_key=GOOGLE_API_KEY)
     main()
