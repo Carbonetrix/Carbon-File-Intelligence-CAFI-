@@ -115,23 +115,25 @@ def get_typeofpdf():
     return typepdf
 
 
-def get_llminfo():
-    with st.sidebar.expander("Model Configuration", expanded=False):
-        tip1="Select a model you want to use."
-        model = st.radio("Choose LLM:",
-                         ("gemini-1.5-flash",
-                          "gemini-1.5-pro",
-                         ), help=tip1)
-        tip2="Lower temperatures are good for prompts that require a less open-ended or creative response, while higher temperatures can lead to more diverse or creative results. A temperature of 0 means that the highest probability tokens are always selected."
-        temp = st.slider("Temperature:", min_value=0.0,
-                         max_value=2.0, value=1.0, step=0.25, help=tip2)
-        tip3="Used for nucleus sampling. Specify a lower value for less random responses and a higher value for more random responses."
-        topp = st.slider("Top P:", min_value=0.0,
-                         max_value=1.0, value=0.94, step=0.01, help=tip3)
-        tip4="Number of response tokens, 8194 is limit."
-        maxtokens = st.slider("Maximum Tokens:", min_value=100,
-                              max_value=5000, value=2000, step=100, help=tip4)
-    return model, temp, topp, maxtokens
+# def get_llminfo():
+#     with st.sidebar.expander("Model Configuration", expanded=False):
+#         tip1="Select a model you want to use."
+#         model = st.radio("Choose LLM:",
+#                          ("gemini-1.5-flash",
+#                           "gemini-1.5-pro",
+#                          ), help=tip1)
+#         tip2="Lower temperatures are good for prompts that require a less open-ended or creative response, while higher temperatures can lead to more diverse or creative results. A temperature of 0 means that the highest probability tokens are always selected."
+#         temp = st.slider("Temperature:", min_value=0.0,
+#                          max_value=2.0, value=1.0, step=0.25, help=tip2)
+#         tip3="Used for nucleus sampling. Specify a lower value for less random responses and a higher value for more random responses."
+#         topp = st.slider("Top P:", min_value=0.0,
+#                          max_value=1.0, value=0.94, step=0.01, help=tip3)
+#         tip4="Number of response tokens, 8194 is limit."
+#         maxtokens = st.slider("Maximum Tokens:", min_value=100,
+#                               max_value=5000, value=2000, step=100, help=tip4)
+#     return model, temp, topp, maxtokens
+
+
 
 
 def delete_files_in_directory(directory_path):
@@ -159,7 +161,7 @@ def delete_files_in_directory(directory_path):
 if 'summary_text' not in st.session_state:
     st.session_state.summary_text = None
 
-def summarize_content(model_name, content, file_type):
+def summarize_content(content, file_type):
     # Only generate summary if it hasn't been generated yet
     if st.session_state.summary_text is None:
         generation_config = {
@@ -167,7 +169,7 @@ def summarize_content(model_name, content, file_type):
             "top_p": 1,
             "max_output_tokens": 1024,
         }
-        model = genai.GenerativeModel(model_name=model_name, generation_config=generation_config)
+        model = genai.GenerativeModel(model_name="gemini-1.5-flash", generation_config=generation_config)
 
         if file_type == "document":
             prompt = f"""
@@ -180,7 +182,7 @@ def summarize_content(model_name, content, file_type):
             response = model.generate_content(prompt)
         else:
             prompt = f"Please provide a detailed description and summary of this {file_type}."
-            response = model.generate_content([content, prompt])
+            response = model.generate_content([content, prompt],)
 
         
         
@@ -255,7 +257,7 @@ def main():
             audio_file = st.file_uploader("Upload your audio", type=["mp3", "wav"])
     
     # Move model configuration after uploader
-    model_name, temperature, top_p, max_tokens = get_llminfo()
+    # model_name, temperature, top_p, max_tokens = get_llminfo()
     
     # Create two columns for layout
     col1, col2 = st.columns([0.5, 0.5])
@@ -293,7 +295,7 @@ def main():
 
 
             if st.button("Summarize Document", key="summarize_doc"):
-                summarize_content(model_name, [t[0] for t in st.session_state.uploaded_content], "document")
+                summarize_content([t[0] for t in st.session_state.uploaded_content], "document")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
@@ -311,7 +313,7 @@ def main():
             st.session_state.file_type = "image"
 
             if st.button("Summarize Image", key="summarize_img"):
-                summarize_content(model_name, st.session_state.uploaded_content, "image")
+                summarize_content(st.session_state.uploaded_content, "image")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
@@ -321,7 +323,7 @@ def main():
         elif typepdf == "Video" and video_file:
             st.video(video_file)
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
                 temp_file.write(video_file.read())
                 temp_file_path = temp_file.name
 
@@ -329,7 +331,7 @@ def main():
             st.session_state.file_type = "video"
 
             if st.button("Summarize Video", key="summarize_video"):
-                summarize_content(model_name, st.session_state.uploaded_content, "video")
+                summarize_content(st.session_state.uploaded_content, "video")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
@@ -347,7 +349,7 @@ def main():
             st.session_state.file_type = "audio"
 
             if st.button("Summarize Audio", key="summarize_audio"):
-                summarize_content(model_name, st.session_state.uploaded_content, "audio")
+                summarize_content(st.session_state.uploaded_content, "audio")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
@@ -410,12 +412,12 @@ def main():
                         message_placeholder = st.empty()
                         full_response = ""
                         
-                        generation_config = {
-                            "temperature": temperature,
-                            "top_p": top_p,
-                            "max_output_tokens": max_tokens,
-                        }
-                        model = genai.GenerativeModel(model_name=model_name, generation_config=generation_config)
+                        # generation_config = {
+                        #     "temperature": temperature,
+                        #     "top_p": top_p,
+                        #     "max_output_tokens": max_tokens,
+                        # }
+                        model = genai.GenerativeModel(model_name="gemini-1.5-flash")
                         
                         if st.session_state.file_type == "document":
                             # document_text = "\n".join([f"Page {page_num}: {text}" for text, page_num in st.session_state.uploaded_content if page_num])
