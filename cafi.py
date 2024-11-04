@@ -12,7 +12,7 @@ from docx import Document
 
 path2 = '/Users/....'
 
-st.set_page_config(layout="wide", page_title="Document Intelligence")
+st.set_page_config(layout="wide", page_title="Carbon File Intelligence")
 
 #st.sidebar.image("https://carbonapp.netlify.app/logo.svg", width=200)
 # Add custom CSS for modern styling and chat alignment
@@ -161,6 +161,8 @@ def delete_files_in_directory(directory_path):
 if 'summary_text' not in st.session_state:
     st.session_state.summary_text = None
 
+
+
 def summarize_content(content, file_type):
     # Only generate summary if it hasn't been generated yet
     if st.session_state.summary_text is None:
@@ -189,9 +191,7 @@ def summarize_content(content, file_type):
         # Store the summary in session state
         st.session_state.summary_text=response.text
 
-    # Display the summary from session state
-    # st.subheader(f"{file_type.capitalize()} Summary")
-    # st.info(st.session_state.summary_text)
+
 
 
 def display_pdf(file):
