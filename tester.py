@@ -3,7 +3,7 @@ import google.generativeai as genai
 from pypdf import PdfReader 
 import os
 # import fitz
-
+from pathlib import Path
 import tempfile
 import base64
 import io
@@ -137,7 +137,48 @@ def summarize_content(content, file_type):
         
         # Store the summary in session state
         st.session_state.summary_text=response.text
+
+
+def process_video_file(video_file):
+    """
+    Process video file with proper error handling and state management
+    Returns: GenerativeAI file object or None if failed
+    """
+    try:
+        # Create a temporary directory that won't be immediately deleted
+        temp_dir = Path(tempfile.mkdtemp())
+        temp_file_path = temp_dir / f"temp_video_{video_file.name}"
         
+        # Write the video file to temporary location
+        with open(temp_file_path, 'wb') as f:
+            f.write(video_file.getbuffer())
+        
+        # Ensure the file exists and has content
+        if not temp_file_path.exists() or temp_file_path.stat().st_size == 0:
+            st.error("Failed to save video file properly")
+            return None
+            
+        # Upload to Generative AI with proper error handling
+        try:
+            gen_file = genai.upload_file(
+                path=str(temp_file_path),
+                mime_type='video/mp4'
+            )
+            return gen_file
+        except Exception as e:
+            st.error(f"Failed to upload to Generative AI: {str(e)}")
+            return None
+        finally:
+            # Clean up the temporary file
+            try:
+                temp_file_path.unlink()
+                temp_dir.rmdir()
+            except Exception:
+                pass  # Ignore cleanup errors
+                
+    except Exception as e:
+        st.error(f"Error processing video: {str(e)}")
+        return None
 
 def main():
     page_setup()
@@ -171,26 +212,29 @@ def main():
 
     with col1:
 
+
+
+# Replace the video processing section in your main() function with this:
         if typepdf == "Video" and video_file:
             st.video(video_file)
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
-                temp_file.write(video_file.read())
-                temp_file_path = temp_file.name
-
-            st.session_state.uploaded_content = genai.upload_file(path=temp_file_path)
-            st.session_state.file_type = "video"
-
-            if st.button("Summarize Video", key="summarize_video"):
-                summarize_content(st.session_state.uploaded_content, "video")
-
-            if st.session_state.summary_text is not None:
-                with st.expander("Click to view the summary", expanded=False):
-                    st.subheader("Video Summary")
-                    st.info(st.session_state.summary_text)
+            
+            # Process video with new function
+            uploaded_content = process_video_file(video_file)
+            
+            if uploaded_content:
+                st.session_state.uploaded_content = uploaded_content
+                st.session_state.file_type = "video"
                 
-        else:
-            st.info(f"Please upload {typepdf.lower()}")
+                if st.button("Summarize Video", key="summarize_video"):
+                    with st.spinner("Processing video..."):
+                        summarize_content(st.session_state.uploaded_content, "video")
+                        
+                if st.session_state.summary_text is not None:
+                    with st.expander("Click to view the summary", expanded=False):
+                        st.subheader("Video Summary")
+                        st.info(st.session_state.summary_text)
+            else:
+                st.error("Failed to process video file. Please try uploading again.")
 
     with col2:
         if st.session_state.uploaded_content:
