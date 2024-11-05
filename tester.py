@@ -3,7 +3,7 @@ import google.generativeai as genai
 from pypdf import PdfReader 
 import os
 # import fitz
-from pathlib import Path
+
 import tempfile
 import base64
 import io
@@ -137,48 +137,7 @@ def summarize_content(content, file_type):
         
         # Store the summary in session state
         st.session_state.summary_text=response.text
-
-
-def process_video_file(video_file):
-    """
-    Process video file with proper error handling and state management
-    Returns: GenerativeAI file object or None if failed
-    """
-    try:
-        # Create a temporary directory that won't be immediately deleted
-        temp_dir = Path(tempfile.mkdtemp())
-        temp_file_path = temp_dir / f"temp_video_{video_file.name}"
         
-        # Write the video file to temporary location
-        with open(temp_file_path, 'wb') as f:
-            f.write(video_file.getbuffer())
-        
-        # Ensure the file exists and has content
-        if not temp_file_path.exists() or temp_file_path.stat().st_size == 0:
-            st.error("Failed to save video file properly")
-            return None
-            
-        # Upload to Generative AI with proper error handling
-        try:
-            gen_file = genai.upload_file(
-                path=str(temp_file_path),
-                mime_type='video/mp4'
-            )
-            return gen_file
-        except Exception as e:
-            st.error(f"Failed to upload to Generative AI: {str(e)}")
-            return None
-        finally:
-            # Clean up the temporary file
-            try:
-                temp_file_path.unlink()
-                temp_dir.rmdir()
-            except Exception:
-                pass  # Ignore cleanup errors
-                
-    except Exception as e:
-        st.error(f"Error processing video: {str(e)}")
-        return None
 
 def main():
     page_setup()
@@ -212,129 +171,29 @@ def main():
 
     with col1:
 
-
-
-# Replace the video processing section in your main() function with this:
         if typepdf == "Video" and video_file:
             st.video(video_file)
-            
-            # Process video with new function
-            uploaded_content = process_video_file(video_file)
-            
-            if uploaded_content:
-                st.session_state.uploaded_content = uploaded_content
-                st.session_state.file_type = "video"
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
+                temp_file.write(video_file.read())
+                temp_file_path = temp_file.name
+
+            st.session_state.uploaded_content = genai.upload_file(path=temp_file_path)
+            st.session_state.file_type = "video"
+
+
+            summarize_content(st.session_state.uploaded_content, "video")
+
+            if st.session_state.summary_text is not None:
+                with st.expander("Click to view the summary", expanded=False):
+                    st.subheader("Video Summary")
+                    st.info(st.session_state.summary_text)
                 
-                if st.button("Summarize Video", key="summarize_video"):
-                    with st.spinner("Processing video..."):
-                        summarize_content(st.session_state.uploaded_content, "video")
-                        
-                if st.session_state.summary_text is not None:
-                    with st.expander("Click to view the summary", expanded=False):
-                        st.subheader("Video Summary")
-                        st.info(st.session_state.summary_text)
-            else:
-                st.error("Failed to process video file. Please try uploading again.")
-
-    with col2:
-        if st.session_state.uploaded_content:
-            with st.container(border=True, height=660):
-                st.subheader(f"Start a conversation")
-                
-                # Suggested queries
-                col1, col2, col3 = st.columns([0.3, 0.3, 0.3])
-                with col1:
-                    with st.container(border=True):
-                        st.caption("Explain this content in simple terms")
-                with col2:
-                    with st.container(border=True):
-                        st.caption("Highlight the most important sections.")
-                with col3:
-                    with st.container(border=True):
-                        st.caption("What are the key points here?")
-                st.write("")
-                
-                # Display chat messages
-                chat_container = st.container()
-                with chat_container:
-                    for message in st.session_state.messages:
-                        if message["role"] == "user":
-                            st.markdown(f"""
-                            <div class="stChatMessage user">
-                                <div>{message["content"]}</div>
-                                <img src="data:image/png;base64,{base64.b64encode(open('user.png', 'rb').read()).decode()}" alt="User Avatar">
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""
-                            <div class="stChatMessage assistant">
-                                <img src="data:image/png;base64,{base64.b64encode(open('carbonetrix.png', 'rb').read()).decode()}" alt="Assistant Avatar">
-                                <div>{message["content"]}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                
-                # Input field at the bottom
-                prompt = st.chat_input(f"Ask a question about the {st.session_state.file_type}")
-                if prompt:
-                    st.session_state.messages.append({"role": "user", "content": prompt})
-                    
-                    with chat_container:
-                        st.markdown(f"""
-                        <div class="stChatMessage user">
-                            <div>{prompt}</div>
-                            <img src="data:image/png;base64,{base64.b64encode(open('user.png', 'rb').read()).decode()}" alt="User Avatar">
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                        message_placeholder = st.empty()
-                        full_response = ""
-                        
-                        # generation_config = {
-                        #     "temperature": temperature,
-                        #     "top_p": top_p,
-                        #     "max_output_tokens": max_tokens,
-                        # }
-                        model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-                        
-                        if st.session_state.file_type == "document":
-                            # document_text = "\n".join([f"Page {page_num}: {text}" for text, page_num in st.session_state.uploaded_content if page_num])
-                            document_text = "\n".join([f"Page {page_num}: {text}" if page_num is not None else text for text, page_num in st.session_state.uploaded_content]
-)
-
-                            gemini_prompt = f"""
-                            You are an AI assistant tasked with answering questions about the following document:
-
-                            {document_text}
-
-                            Please answer the following question based on the document above:
-                            {prompt}
-
-                            After your response, on a new line, please add a citation indicating which page(s) the information came from, in the format: [source: page X] or [source: pages X-Y] if the information spans multiple pages.
-                            """
-                            response = model.generate_content(gemini_prompt, stream=True)
-                        else:
-                            response = model.generate_content([st.session_state.uploaded_content, prompt], stream=True)
-                        
-                        for chunk in response:
-                            full_response += chunk.text
-                            message_placeholder.markdown(f"""
-                            <div class="stChatMessage assistant">
-                                <img src="data:image/png;base64,{base64.b64encode(open('carbonetrix.png', 'rb').read()).decode()}" alt="Assistant Avatar">
-                                <div>{full_response}▌</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        message_placeholder.markdown(f"""
-                        <div class="stChatMessage assistant">
-                            <img src="data:image/png;base64,{base64.b64encode(open('carbonetrix.png', 'rb').read()).decode()}" alt="Assistant Avatar">
-                            <div>{full_response}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
         else:
-            st.info(f"Please upload {typepdf.lower()} to start chatting.")
+            st.info(f"Please upload {typepdf.lower()}")
 
+    
 if __name__ == '__main__':
-    GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-    genai.configure(api_key=GOOGLE_API_KEY)
+    # GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+    genai.configure(api_key="AIzaSyDziN0csVOFMGAw7AQwuKO6Z29eUfpFuC0")
     main()
