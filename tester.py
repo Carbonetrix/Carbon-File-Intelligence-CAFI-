@@ -137,7 +137,10 @@ def summarize_content(content, file_type):
         
         # Store the summary in session state
         st.session_state.summary_text=response.text
-        
+    
+temp_directory = "C:\\temp"  # Make sure this folder exists, or create it
+if not os.path.exists(temp_directory):
+    os.makedirs(temp_directory)
 
 def main():
     page_setup()
@@ -174,9 +177,23 @@ def main():
         if typepdf == "Video" and video_file:
             st.video(video_file)
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
+            import os
+
+# Step 1: Define a custom temporary directory path
+            temp_directory = "C:\\temp"  # Make sure this folder exists, or create it
+            if not os.path.exists(temp_directory):
+                os.makedirs(temp_directory)          
+
+            temp_file_path = os.path.join(temp_directory, "temp_video.mp4")
+
+            with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(video_file.read())
-                temp_file_path = temp_file.name
+
+            # with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
+            #     temp_file.write(video_file.read())
+            #     st.write(temp_file)
+            #     temp_file_path = temp_file.name
+            #     st.write(temp_file_path)
 
             import time
             time.sleep(1)
