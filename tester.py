@@ -178,6 +178,8 @@ def main():
                 temp_file.write(video_file.read())
                 temp_file_path = temp_file.name
 
+            import time
+            time.sleep(1)
             st.session_state.uploaded_content = genai.upload_file(path=temp_file_path)
             st.session_state.file_type = "video"
 
