@@ -4,7 +4,7 @@ from pypdf import PdfReader
 import os
 # import fitz
 import time        
-
+from io import BytesIO
 import tempfile
 import base64
 import io
@@ -15,7 +15,7 @@ path2 = '/Users/....'
 
 st.set_page_config(layout="wide", page_title="Carbon File Intelligence")
 
-#st.sidebar.image("https://carbonapp.netlify.app/logo.svg", width=200)
+
 # Add custom CSS for modern styling and chat alignment
 st.markdown("""
 <style>
@@ -96,6 +96,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+# ################################## FUNCTIONS ########################
 def page_setup():
     hide_menu_style = """
             <style>
@@ -116,27 +118,6 @@ def get_typeofpdf():
     return typepdf
 
 
-# def get_llminfo():
-#     with st.sidebar.expander("Model Configuration", expanded=False):
-#         tip1="Select a model you want to use."
-#         model = st.radio("Choose LLM:",
-#                          ("gemini-1.5-flash",
-#                           "gemini-1.5-pro",
-#                          ), help=tip1)
-#         tip2="Lower temperatures are good for prompts that require a less open-ended or creative response, while higher temperatures can lead to more diverse or creative results. A temperature of 0 means that the highest probability tokens are always selected."
-#         temp = st.slider("Temperature:", min_value=0.0,
-#                          max_value=2.0, value=1.0, step=0.25, help=tip2)
-#         tip3="Used for nucleus sampling. Specify a lower value for less random responses and a higher value for more random responses."
-#         topp = st.slider("Top P:", min_value=0.0,
-#                          max_value=1.0, value=0.94, step=0.01, help=tip3)
-#         tip4="Number of response tokens, 8194 is limit."
-#         maxtokens = st.slider("Maximum Tokens:", min_value=100,
-#                               max_value=5000, value=2000, step=100, help=tip4)
-#     return model, temp, topp, maxtokens
-
-
-
-
 def delete_files_in_directory(directory_path):
    try:
      files = os.listdir(directory_path)
@@ -146,22 +127,6 @@ def delete_files_in_directory(directory_path):
          os.remove(file_path)
    except OSError:
      print("Error occurred while deleting files.")
-
-
-# def setup_documents(pdf_file_path):
-#     to_delete_path = path2
-#     delete_files_in_directory(to_delete_path)
-#     doc = fitz.open(pdf_file_path)
-#     os.chdir(to_delete_path)
-#     for page in doc: 
-#         pix = page.get_pixmap(matrix=fitz.Identity, dpi=None, 
-#                               colorspace=fitz.csRGB, clip=None, alpha=False, annots=True) 
-#         pix.save("pdfimage-%i.jpg" % page.number) 
-
-
-if 'summary_text' not in st.session_state:
-    st.session_state.summary_text = None
-
 
 
 def summarize_content(content, file_type):
@@ -240,7 +205,7 @@ def extract_text_from_pdf(pdf_file):
             text_with_pages.append((text, page_num))
     return text_with_pages
 
-
+########################## MAIN FUNCTION ##############################
 def main():
     page_setup()
     typepdf = get_typeofpdf()
@@ -257,8 +222,7 @@ def main():
         elif typepdf == "Audio":
             audio_file = st.file_uploader("Upload your audio", type=["mp3", "wav"])
     
-    # Move model configuration after uploader
-    # model_name, temperature, top_p, max_tokens = get_llminfo()
+
     
     # Create two columns for layout
     col1, col2 = st.columns([0.5, 0.5])
@@ -271,8 +235,9 @@ def main():
         st.session_state.current_media_type = typepdf
         st.session_state.summary_text=None
 
-    with col1:
-   
+
+###################### COLUMN FOR MEDIA TYPES ##########################
+    with col1: 
         if typepdf == "Documents" and uploaded_files:
             text = []  
             for doc in uploaded_files:
@@ -288,12 +253,9 @@ def main():
                     with st.expander("Click to View Document", expanded=True):                 
                         text.append((extract_text_from_txt(doc), None))
                         display_txt(doc)
-
-          
+        
             st.session_state.uploaded_content = text
             st.session_state.file_type = "document"
-
-
 
             if st.button("Summarize Document", key="summarize_doc"):
                 summarize_content([t[0] for t in st.session_state.uploaded_content], "document")
@@ -322,35 +284,37 @@ def main():
                     st.info(st.session_state.summary_text)
 
         elif typepdf == "Video" and video_file:
-            if typepdf == "Video" and video_file:
-                st.video(video_file)
-                if video_file is not None:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-                        temp_file.write(video_file.read())  # Write the uploaded file content to temp file
-                        fpath2 = temp_file.name
+        
+            st.video(video_file)
+            if video_file is not None:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                    temp_file.write(video_file.read())  # Write the uploaded file content to temp file
+                    fpath2 = temp_file.name
 
-                        st.session_state.uploaded_content=fpath2
+                    video_data = BytesIO(video_file.read())
 
-                        video_file = genai.upload_file(path=fpath2)
-                        # st.write(f"Completed upload: {video_file.uri}")
-                        
-                        # Step 4: Wait for the file to be ready
-                        while video_file.state.name == "PROCESSING":
-                            st.write("Processing file...")
-                            time.sleep(10)
-                            video_file = genai.get_file(video_file.name)
+                    st.session_state.uploaded_content=video_data
 
-                
-                        if video_file.state.name == "FAILED":
-                            raise ValueError("File upload failed with state: FAILED")
-                summarize_content(video_file, "video")
+                    video_file = genai.upload_file(path=fpath2)
 
-                if st.session_state.summary_text is not None:
-                    with st.expander("Click to view the summary", expanded=False):
-                        st.subheader("Video Summary")
-                        st.info(st.session_state.summary_text)               
-            else:
-                st.info(f"Please upload {typepdf.lower()}")
+                    st.session_state.file_type = "video"
+
+                    while video_file.state.name == "PROCESSING":
+                        time.sleep(10)
+                        video_file = genai.get_file(video_file.name)
+
+            
+                    if video_file.state.name == "FAILED":
+                        raise ValueError("File upload failed with state: FAILED")
+
+                    if st.button("Summarize Audio", key="summarize_audio"):
+                        summarize_content(video_file, "video")
+
+            if st.session_state.summary_text is not None:
+                with st.expander("Click to view the summary", expanded=False):
+                    st.subheader("Video Summary")
+                    st.info(st.session_state.summary_text)               
+         
 
         elif typepdf == "Audio" and audio_file:
             st.audio(audio_file)
@@ -369,10 +333,11 @@ def main():
                 with st.expander("Click to view the summary", expanded=False):
                     st.subheader("Audio Summary")
                     st.info(st.session_state.summary_text)
-                
+            
         else:
             st.info(f"Please upload {typepdf.lower()}")
 
+#################### COLUMN FOR CHATTTING/CONVERSATION ##################
     with col2:
         if st.session_state.uploaded_content:
             with st.container(border=True, height=660):
@@ -425,12 +390,7 @@ def main():
 
                         message_placeholder = st.empty()
                         full_response = ""
-                        
-                        # generation_config = {
-                        #     "temperature": temperature,
-                        #     "top_p": top_p,
-                        #     "max_output_tokens": max_tokens,
-                        # }
+
                         model = genai.GenerativeModel(model_name="gemini-1.5-flash")
                         
                         if st.session_state.file_type == "document":
@@ -449,6 +409,8 @@ def main():
                             After your response, on a new line, please add a citation indicating which page(s) the information came from, in the format: [source: page X] or [source: pages X-Y] if the information spans multiple pages.
                             """
                             response = model.generate_content(gemini_prompt, stream=True)
+                        elif st.session_state.file_type == "video":
+                            response = model.generate_content([video_file, prompt], stream=True)
                         else:
                             response = model.generate_content([st.session_state.uploaded_content, prompt], stream=True)
                         
