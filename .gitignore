@@ -1,3 +1,4 @@
 .env
 /CAFI
 /.vscode
+/raw.py

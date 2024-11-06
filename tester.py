@@ -173,35 +173,39 @@ def main():
         st.session_state.summary_text=None
 
     with col1:
-
+        import time
+        
         if typepdf == "Video" and video_file:
             st.video(video_file)
 
-            import os
+            if video_file is not None:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                    temp_file.write(video_file.read())  # Write the uploaded file content to temp file
+                    fpath2 = temp_file.name  
 
-# Step 1: Define a custom temporary directory path
-            temp_directory = "C:\\temp"  # Make sure this folder exists, or create it
-            if not os.path.exists(temp_directory):
-                os.makedirs(temp_directory)          
+                    video_file = genai.upload_file(path=fpath2)
+                    st.write(f"Completed upload: {video_file.uri}")
+                    
+                    # Step 4: Wait for the file to be ready
+                    while video_file.state.name == "PROCESSING":
+                        st.write("Processing file...")
+                        time.sleep(10)
+                        video_file = genai.get_file(video_file.name)
 
-            temp_file_path = os.path.join(temp_directory, "temp_video.mp4")
+            
+                    if video_file.state.name == "FAILED":
+                        raise ValueError("File upload failed with state: FAILED")
 
-            with open(temp_file_path, "wb") as temp_file:
-                temp_file.write(video_file.read())
-
-            # with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
-            #     temp_file.write(video_file.read())
-            #     st.write(temp_file)
-            #     temp_file_path = temp_file.name
-            #     st.write(temp_file_path)
-
-            import time
-            time.sleep(1)
-            st.session_state.uploaded_content = genai.upload_file(path=temp_file_path)
-            st.session_state.file_type = "video"
+                    # Clean up: Optionally delete the temp file if no longer needed
+                    # os.remove(fpath2)
 
 
-            summarize_content(st.session_state.uploaded_content, "video")
+
+            # st.session_state.uploaded_content = genai.upload_file(path=video_file)
+            # st.session_state.file_type = "video"
+
+
+            summarize_content(video_file, "video")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
