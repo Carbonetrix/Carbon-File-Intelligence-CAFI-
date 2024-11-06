@@ -173,11 +173,9 @@ def main():
         st.session_state.summary_text=None
 
     with col1:
-        import time
-        
+        import time        
         if typepdf == "Video" and video_file:
             st.video(video_file)
-
             if video_file is not None:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
                     temp_file.write(video_file.read())  # Write the uploaded file content to temp file
@@ -195,23 +193,12 @@ def main():
             
                     if video_file.state.name == "FAILED":
                         raise ValueError("File upload failed with state: FAILED")
-
-                    # Clean up: Optionally delete the temp file if no longer needed
-                    # os.remove(fpath2)
-
-
-
-            # st.session_state.uploaded_content = genai.upload_file(path=video_file)
-            # st.session_state.file_type = "video"
-
-
             summarize_content(video_file, "video")
 
             if st.session_state.summary_text is not None:
                 with st.expander("Click to view the summary", expanded=False):
                     st.subheader("Video Summary")
-                    st.info(st.session_state.summary_text)
-                
+                    st.info(st.session_state.summary_text)               
         else:
             st.info(f"Please upload {typepdf.lower()}")
 

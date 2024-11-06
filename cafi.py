@@ -3,6 +3,7 @@ import google.generativeai as genai
 from pypdf import PdfReader 
 import os
 # import fitz
+import time        
 
 import tempfile
 import base64
@@ -321,22 +322,33 @@ def main():
                     st.info(st.session_state.summary_text)
 
         elif typepdf == "Video" and video_file:
-            st.video(video_file)
+            if typepdf == "Video" and video_file:
+                st.video(video_file)
+                if video_file is not None:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                        temp_file.write(video_file.read())  # Write the uploaded file content to temp file
+                        fpath2 = temp_file.name  
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4",) as temp_file:
-                temp_file.write(video_file.read())
-                temp_file_path = temp_file.name
+                        video_file = genai.upload_file(path=fpath2)
+                        st.write(f"Completed upload: {video_file.uri}")
+                        
+                        # Step 4: Wait for the file to be ready
+                        while video_file.state.name == "PROCESSING":
+                            st.write("Processing file...")
+                            time.sleep(10)
+                            video_file = genai.get_file(video_file.name)
 
-            st.session_state.uploaded_content = genai.upload_file(path=temp_file_path)
-            st.session_state.file_type = "video"
+                
+                        if video_file.state.name == "FAILED":
+                            raise ValueError("File upload failed with state: FAILED")
+                summarize_content(video_file, "video")
 
-            if st.button("Summarize Video", key="summarize_video"):
-                summarize_content(st.session_state.uploaded_content, "video")
-
-            if st.session_state.summary_text is not None:
-                with st.expander("Click to view the summary", expanded=False):
-                    st.subheader("Video Summary")
-                    st.info(st.session_state.summary_text)
+                if st.session_state.summary_text is not None:
+                    with st.expander("Click to view the summary", expanded=False):
+                        st.subheader("Video Summary")
+                        st.info(st.session_state.summary_text)               
+            else:
+                st.info(f"Please upload {typepdf.lower()}")
 
         elif typepdf == "Audio" and audio_file:
             st.audio(audio_file)
