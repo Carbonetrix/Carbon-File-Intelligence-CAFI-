@@ -327,10 +327,12 @@ def main():
                 if video_file is not None:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
                         temp_file.write(video_file.read())  # Write the uploaded file content to temp file
-                        fpath2 = temp_file.name  
+                        fpath2 = temp_file.name
+
+                        st.session_state.uploaded_content=fpath2
 
                         video_file = genai.upload_file(path=fpath2)
-                        st.write(f"Completed upload: {video_file.uri}")
+                        # st.write(f"Completed upload: {video_file.uri}")
                         
                         # Step 4: Wait for the file to be ready
                         while video_file.state.name == "PROCESSING":
